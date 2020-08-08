@@ -1,0 +1,214 @@
+---
+title: "Presentación Tesis"
+author: "Marco Mlynarzewicz y Javier Granica"
+date: "07/06/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## Indice
+
+[Introducción]
+
+[Descripción de la base de datos]
+
+[Regresión logistica Condicional-Multinomial]
+
+[Árbol de clasificación bajo el algoritmo CART]
+
+
+# Introducción
+
+La presente exposición consta de cuatro capítulos. En un primer momento definimos el objetivo de la investigación. En este caso, nuestra investigación tiene como misión perfilar potenciales votantes en función de su intención de voto. Como punto novedoso la investiga introduce dentro de un mismo modelo variables asociadas a los individuos encuestados tanto como variables correspondientes a cada partido político en particular.
+
+Dicho esto es preciso mencionar la fuente en la cual recolectamos los datos utilizados. Los base de datos recolectada proviene de la página CSES.org. La misma contiene una encuensta realizada en el mes de agosto del año 2015 en la argentina y tiene por obejetivo relevarla intención de voto de las elecciones Argentinas P.A.S.O del mismo año. 
+
+Luego, realizamos un análisis descriptivo de los individuos encuestados y las variables relevadas por la encuentas para con ello proceder con las transformaciones pertinentes en las variables para lograr el desarrollo óptimo de los modelos. 
+
+Por último modelamos los datos bajo dos algoritmos complentarios para aprehender de forma integral el fenómeno a analizar.
+
+Para realizar la investigación que nos propusimos primero cargamos las librerias que utilizaremos y también cargamos las transformaciones realizadas en la base datos.
+
+```{r a veer, message=FALSE, warning=FALSE}
+source("libraries.r",encoding = "UTF-8")
+
+```
+
+
+```{r global, message=FALSE, warning=FALSE}
+
+source("global.r",encoding = "UTF-8")
+```
+
+# Descripción de la base de datos
+
+Ya con la base de datos limpia utilizamos nuestra variable dependiente, la intención de voto, para explorar la encuensta en función de las demás variables. 
+
+En primer momento utilizaremos las cuatro variables correspondientes al espectro ideológico las cuales son el autoposicionamiento y la percepción ideológica de cada individuo respecto a cada partido. El individuo se posiciona y posiciona a cada partido en un arco del 0 al 10 siendo 0 extrema izquierda y 10 extrema derecha.
+
+```{r pressure, echo=FALSE, message=FALSE, warning=FALSE}
+fa1<-ggplot(data=Survey.Data,
+            aes(x=Vote,
+                                 y=Autoperception.Ideology)
+)+geom_boxplot(aes(color=Vote)
+               )+ theme_minimal()+
+  stat_summary(fun.y=mean, colour="darkred", geom="point",
+               shape=18, size=3,show.legend = FALSE)
+
+fa2<-ggplot(data=Survey.Data,
+            aes(x=Vote,
+                                 y= FPV.Ideology)
+)+geom_boxplot(aes(color=Vote)
+               )+  theme_minimal()+
+  stat_summary(fun.y=mean, colour="darkred", geom="point",
+               shape=18, size=3,show.legend = FALSE)
+
+fa3<-ggplot(data=Survey.Data,
+            aes(x=Vote,
+                                 y= PRO.Ideology)
+)+geom_boxplot(aes(color=Vote)
+               )+ theme_minimal()+
+  stat_summary(fun.y=mean, colour="darkred", geom="point",
+               shape=18, size=3,show.legend = FALSE)
+
+fa4<-ggplot(data=Survey.Data,aes(
+  x=Vote, y= UNA.Ideology)
+)+geom_boxplot(aes(color=Vote))+ theme_minimal()+
+  stat_summary(fun.y=mean, colour="darkred", geom="point",
+               shape=18, size=3,show.legend = FALSE)
+
+grid.arrange(fa1, fa2, fa3, fa4, ncol = 2, nrow = 2)  
+
+```
+
+En estos gráficos vemos que los individuos encuestados se autoperciben, en su mayoría, en el punto 5, es decir neutrales en cuanto a la disputa izquierda y derecha. Esto también lo podemos visualizar gracias a la media aritmética, materializada con el rombo rojo de cada boxplot. También vemos que no hay mayor relevancia entre la intención de voto de los individuos y como posicionan a los partidos políticos dentro del espectro ideológico.
+
+
+En los siguientes graficos vemos la intención de voto de los encuestados en función de la variable denominada "Voto en las Elecciones Previas". La última variable describe el voto de los individuos en las elecciones presidenciales del año 2011, mas precisamente si votaron o no votaron al Frente Para la Victoria. Además el gráfico divide en dos colores a la variable "Economic.Index", la misma es una variable dicotomica que tiene como objetivo discriminar a los individuos que perciben que la economía mejoró en los últimos cuatro años o empeoro.
+
+```{r asi si, echo=FALSE, message=FALSE, warning=FALSE}
+source("transformdata.r", encoding = "UTF-8")
+esa <- ggplot(data = Survey.Data.KNN, mapping = aes(Vote)) + theme_minimal()
+esa<- esa + geom_bar(aes(fill = Economic.Index), position = 'dodge') + facet_grid(Previous.Election~.)
+esa
+```
+
+En estos gráficos vemos que puede existir una correlación entre los individuos que votaron al FPV en las elecciones del 2011 y creen que la economía mejoro con la intención de voto del año 2015. Mas allá de dicha inferencia vamos a realizar los modelos pertinentes para corroborar o refutar dicha relación.
+
+
+
+# Regresión logistica Condicional-Multinomial
+
+Dicho esto pasaremos a comentar los modelos realizados. Primero presentaremos la regresión logística condicional-multinomial. Realizamos el modelo logistico bajo dos perspectivas de utilidad electoral. Aunque unicamente describiremos el modelo de proximidad ya que el direccional no logró los resultados esperados
+
+```{r logit, echo=FALSE, message=FALSE, warning=FALSE}
+a<- mlogit.data(Fit.Train.KNN, choice ="Vote",
+                shape = "wide", drop.index = F, varying =  10:18,
+               sep = "_")
+
+
+
+Mlog_Prox <- mlogit(Vote ~ IDPA + Prox | Education + Married +
+                     Gender  + Previous.Election + Economic.Index +
+                     Employment.Status +
+                     Year.Born,  reflevel = "FPV", method= "nr",  data = a)
+
+Mlog_Prox %>% summary()
+
+
+```
+
+La regresión logistica condicional-multinomial presenta una ventaja novedosa: gracias a los ratios de probabilidad es posible crear perfiles optimos de votante en función de cada partido político. A su vez, es posible determinar en terminos de probabilidad a quien votaran los individuos que se encuentran indecisos. 
+Como princiapal desventaja de la regresión multinomial es que es necesario utilizar una categoría de referencia. En nuestro caso utilizaremos al FPV.
+Dicho esto vemos que las categorías que poseen un p-valor menos a 0.05 tienen un asterisco a su derecha, si poseen dos asteristicos el p-valor es menor a 0.001 y tres asteriscos significan que el p-valor es menos a 0.0001. 
+
+Dicho esto es posible ver las categorías mas relevantes para cada partido político. Vemos que la identidad partidaria es la variable mas relevante para el modelo en terminos de presencia o ausencia, esta variable no necesita categoría de referencia ya que la utilizamos como una variable condicional. En segundo lugar vemos que la variable voto en las elecciones previas y el indice económico son variables relevantes para el PRO y UNA en función del PRO. Por último vemos que para los individuos que tienen intención de votar a UNA también resulta relevante si poseen o no un empleo formal. 
+
+En las siguientes tablas vemos los perfiles optimos para cada uno de los partidos políticos que disputaron las elecciones P.A.S.O del año 2015.
+```{r Perfiles Optimos de votante, echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("Perfil de Votantes-1.png")
+knitr::include_graphics("Perfil de Votantes-2.png")
+```
+
+
+
+Ya realizado el modelo pasaremos a crear la matriz de confusión para explorar los resultados pertinentes. El modelo lo realizamos en el 70% de muestra y lo testearemos en el 30% restante.
+```{r validación logit, echo=FALSE, message=FALSE, warning=FALSE}
+TransformFitTest<- mlogit.data(Fit.Test.KNN,choice ="Vote",
+                               shape = "wide", drop.index = F, varying =  10:18,
+                               sep = "_")
+Predict_MLOG<- predict(Mlog_Prox, TransformFitTest)
+
+
+
+AverSiSeDeja<- colnames(Predict_MLOG)[apply(Predict_MLOG,1,which.max)]
+AverSiSeDeja<- as.data.frame(AverSiSeDeja)
+
+bienmlo <- cbind(Predict_MLOG,AverSiSeDeja)
+a <- as.factor(bienmlo[,4])
+b <- as.factor(Fit.Test.KNN$Vote)
+BMB<- confusionMatrix(b,a)
+BMB
+```
+En la matriz de confusión vemos que los votantes que tienen intensión de votar a UNA no logran ser discriminados por el modelo aunque los votantes que tienen intensión de votar al PRO y al FPV si logran ser discriminados por el modelo. En este sentido vemos que el modelo posee un accuracy de 73.9%.
+
+# Árbol de clasificación bajo el algoritmo CART
+
+En este apartado veremos el árbol de clasificación utilizando las variables transformadas bajo los postulados del paradigma de proximidad.
+```{r arbol para prox, echo=FALSE, message=FALSE, warning=FALSE}
+
+set.seed(44)
+arbol_VotoProx <- rpart(Vote~ Gender + Previous.Election+ Education + IDPA_PRO + IDPA_FPV+
+                      IDPA_UNA+ Economic.Index + Year.Born  +  Employment.Status+
+                    Prox_FPV + Prox_UNA + Prox_PRO,
+                    data =  Fit.Train.KNN,
+                    method ='class',
+                    parms = list(split = "gini" ),
+                    control = rpart.control(minsplit = 2, minbucket = 4, cp= 0.0073, maxcompete = 4)
+                    )
+
+
+rpart.plot(arbol_VotoProx, minbranch = 1 , roundint = F, box.palette = list("Red", "green", "blue"), type = 1)
+
+```
+En el arbol vemos once perfiles de votante. Este modelo logra determinar los splits mas relevantes para crear perfiles de votante. De este modo vemos que ambos modelos son complentarios. En los siguientes vemos en términos de probabilidad la intensión de voto de los encuestados segun las variables mas determinates para el árbol de clasificación bajo el algoritmo CART.
+
+```{r Graphs Plotmo, echo=FALSE, message=FALSE, warning=FALSE}
+library(plotmo)
+plotmo(arbol_VotoProx,nresponse="PRO", snip=T)
+plotmo(arbol_VotoProx,nresponse="FPV", snip=T)
+plotmo(arbol_VotoProx,nresponse="UNA", snip=T)
+
+
+plotmo(arbol_VotoProx, type = "prob",  # right graph
+       type2 = "image",nresponse="FPV", ngrid2 = 200, # type2 = "image" for an image plot
+       pt.col = ifelse(Fit.Train.KNN$Vote == "present", "red", "lightblue"))
+
+plotmo(arbol_VotoProx, type = "prob",  # right graph
+       type2 = "image",nresponse="PRO", ngrid2 = 200, # type2 = "image" for an image plot
+       pt.col = ifelse(Fit.Train.KNN$Vote == "present", "red", "lightblue"))
+
+plotmo(arbol_VotoProx, type = "prob",  # right graph
+       type2 = "image",nresponse="UNA", ngrid2 = 200, # type2 = "image" for an image plot
+       pt.col = ifelse(Fit.Train.KNN$Vote == "present", "red", "lightblue"))
+
+```
+
+Por ultimo realizamos la matriz de confusión para el modelo. Vemos un accuracy un tanto superior aunque el mismo problema que presenta el modelo logístico con los individuos que poseen intensión de votar a UNA.
+
+```{r validación arb prox, echo=FALSE, message=FALSE, warning=FALSE}
+
+predicted.Arbol.Voto <-  
+  predict(arbol_VotoProx,  Fit.Test.KNN, type= "class") 
+Matriz.Arbol.Voto <- 
+  table( Fit.Test.KNN$Vote, predicted.Arbol.Voto)
+matrizRfRealARB <- confusionMatrix( Fit.Test.KNN$Vote, predicted.Arbol.Voto)
+matrizRfRealARB 
+```
+
