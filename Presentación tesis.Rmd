@@ -1,6 +1,6 @@
 ---
 title: "Presentación Tesis"
-author: "Marco Mlynarzewicz y Javier Granica"
+author: "Marco Mlynarzewicz"
 date: "07/06/2020"
 output:
   html_document: default
